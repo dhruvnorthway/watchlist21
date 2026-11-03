@@ -1,0 +1,71 @@
+name: Update and publish
+
+on:
+  schedule:
+    # 06:00 and 18:00 India time
+    - cron: "30 0,12 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: watchlist
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # A plain push only republishes the site. Searching YouTube uses daily quota,
+      # so it runs on the schedule or when you press "Run workflow".
+      - name: Find new videos
+        if: github.event_name != 'push'
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: node scripts/update.mjs
+
+      - name: Save the new list
+        if: github.event_name != 'push'
+        run: |
+          git config user.name "watchlist-bot"
+          git config user.email "watchlist-bot@users.noreply.github.com"
+          git add data
+          if git diff --staged --quiet; then
+            echo "Nothing changed."
+          else
+            git commit -m "Update videos"
+            git pull --rebase
+            git push
+          fi
+
+      - name: Gather the site files
+        run: |
+          mkdir _site
+          cp -r index.html assets data _site/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

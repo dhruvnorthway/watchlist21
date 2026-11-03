@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Watchlist</title>
+<meta name="description" content="A personal layer on YouTube. Videos picked from your own interests, each one linking to YouTube.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230E6A52'/%3E%3Cpath d='M12 9l12 7-12 7z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <h1 class="brand"><span>The</span> Watchlist</h1>
+    <p class="status" id="status" aria-live="polite">Loading</p>
+  </div>
+</header>
+<nav class="nav" aria-label="Departments">
+  <div class="wrap"><div class="chips" id="chips"></div></div>
+</nav>
+<main class="wrap" id="main" tabindex="-1">
+  <p class="note">Loading your list</p>
+</main>
+<footer class="wrap foot" id="foot"></footer>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<noscript><p class="wrap note">This page needs JavaScript to show your list.</p></noscript>
+<script>
+  if (location.protocol === 'file:') {
+    document.getElementById('main').innerHTML = '<p class="note">Open this page through a web server, not as a file. In this folder run: python3 -m http.server 8080, then visit http://localhost:8080</p>';
+  }
+</script>
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>
