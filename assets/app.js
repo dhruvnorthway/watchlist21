@@ -50,6 +50,9 @@ function cleanData(raw) {
       topics: Array.isArray(v.topics) ? v.topics.filter((t) => /^\d-\d+$/.test(String(t))).slice(0, 3) : [],
       published: String(v.published || ''),
       score: Math.min(1, Math.max(0, +v.score || 0)),
+      quality: Math.max(0, Math.min(100, +v.quality || 0)),
+      qualityConfidence: String(v.qualityConfidence || 'low'),
+      qualityBasis: String(v.qualityBasis || 'legacy'),
       trusted: !!v.trusted,
     }));
   const updated = raw.updated && isFinite(Date.parse(raw.updated)) ? raw.updated : null;
@@ -82,6 +85,7 @@ function cardHTML(x) {
   const url = 'https://www.youtube.com/watch?v=' + v.id;
   const d = deptOf(v.dept);
   const tag = x.mode === 'B' ? 'Trusted channel' : x.mode === 'C' ? 'Unexpected' : '';
+  const qualityTag = v.qualityBasis === 'ai_metadata' ? 'AI metadata' : v.quality ? 'Quality screened' : ''; 
   return (
     '<article class="card' + (x.opened ? ' seen' : '') + '" data-id="' + v.id + '">' +
     '<a class="thumb yt" href="' + url + '" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true" data-id="' + v.id + '">' +
@@ -89,7 +93,7 @@ function cardHTML(x) {
     '<img src="https://i.ytimg.com/vi/' + v.id + '/mqdefault.jpg" alt="" width="320" height="180" loading="lazy" decoding="async" referrerpolicy="no-referrer">' +
     '<span class="dur">' + fmtDur(v.dur) + '</span></a>' +
     '<h2 class="title"><a class="yt" href="' + url + '" target="_blank" rel="noopener noreferrer" data-id="' + v.id + '">' + esc(v.title) + '</a></h2>' +
-    '<p class="meta"><span>' + esc(v.channel) + '</span><span>' + esc(d.short) + '</span>' + (tag ? '<span class="tag">' + tag + '</span>' : '') + '</p>' +
+    '<p class="meta"><span>' + esc(v.channel) + '</span><span>' + esc(d.short) + '</span>' + (tag ? '<span class="tag">' + tag + '</span>' : '') + (qualityTag ? '<span class="tag">' + qualityTag + '</span>' : '') + '</p>' +
     '<div class="acts">' +
     '<button type="button" class="act" data-act="like" data-id="' + v.id + '" aria-pressed="' + (x.liked ? 'true' : 'false') + '">More like this</button>' +
     '<button type="button" class="act" data-act="hide" data-id="' + v.id + '">Not for me</button>' +

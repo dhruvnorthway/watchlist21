@@ -160,5 +160,5 @@ test('searchPlan alternates fresh and evergreen and cycles queries', () => {
   assert.equal(p1.params.q, t.q[0]);
   assert.equal(p2.params.q, t.q[1]);
   assert.equal(p0.params.regionCode, 'IN');
-  assert.equal(p0.params.videoDuration, 'long');
+  assert.equal(p0.params.videoDuration, 'any');
 });

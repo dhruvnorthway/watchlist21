@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { compile, toItem, evaluate, merge, pickTopics, searchPlan, departmentsMeta } from './lib.mjs';
+import { assessBatch, heuristicQuality } from './quality.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const API = 'https://www.googleapis.com/youtube/v3/';
@@ -155,14 +156,24 @@ export async function run({
     }
   }
 
-  // 4. Judge each video. A saved video that YouTube no longer returns has been removed or made private.
+  // 4. Assess promising new candidates using the free deterministic quality model.
+  const candidateItems = [...found, ...uploadIds].filter((id) => returned.has(id)).map((id) => toItem(returned.get(id)));
+  const qualityById = await assessBatch(candidateItems, model, { log });
+  for (const id of existingMap.keys()) {
+    const old = existingMap.get(id);
+    if (old.quality != null) qualityById.set(id, { score: old.quality, dimensions: old.qualityDimensions || {}, confidence: old.qualityConfidence || 'low', basis: old.qualityBasis || 'legacy', reason: old.qualityReason || '' });
+  }
+
+  // 5. Judge each video. A saved video that YouTube no longer returns has been removed or made private.
   const kept = [];
   const carried = [];
   const dropped = {};
   let gone = 0;
   for (const id of ids) {
     if (returned.has(id)) {
-      const res = evaluate(toItem(returned.get(id)), model, now);
+      const item = toItem(returned.get(id));
+      const quality = qualityById.get(id) || heuristicQuality(item, model);
+      const res = evaluate(item, model, now, quality);
       if (res.ok) kept.push(res.rec);
       else dropped[res.why] = (dropped[res.why] || 0) + 1;
     } else if (!answered.has(id)) {
@@ -183,6 +194,7 @@ export async function run({
   const summary = { searched, units, candidates: ids.length, added, total: videos.length, gone, dropped, quotaHit };
   log(`Searched ${searched} topics using about ${units} quota units${quotaHit ? ' (daily quota reached, stopped early)' : ''}.`);
   log(`Checked ${ids.length} videos: ${added} new, ${videos.length} in the library, ${gone} removed by YouTube.`);
+  log('Quality assessment: free deterministic metadata signals; no paid AI API required.');
   log('Dropped: ' + (Object.keys(dropped).length ? Object.entries(dropped).map(([k, v]) => `${k} ${v}`).join(', ') : 'none'));
   return summary;
 }

@@ -30,7 +30,7 @@ export function compile(cfg) {
         dept: d.id,
         name: t.name,
         q: t.q,
-        regs: t.k.map((k) => ({ k, re: new RegExp('(^|[^a-z0-9])' + esc(k.toLowerCase())) })),
+        regs: t.k.map((k) => ({ k, re: new RegExp('(^|[^a-z0-9])' + esc(k.toLowerCase()) + '(?=$|[^a-z0-9])') })),
       });
     });
   }
@@ -71,7 +71,7 @@ export function toItem(r) {
 // Which of the user's topics does this video belong to? Title hit = 2 points, description or tag hit = 1.
 export function topicMatches(item, model) {
   const title = norm(item.title);
-  const body = norm(item.desc.slice(0, 2000) + ' ' + item.tags.join(' '));
+  const body = norm(item.desc.slice(0, 4000) + ' ' + item.tags.join(' '));
   const out = [];
   for (const t of model.topics) {
     let score = 0;
@@ -101,7 +101,7 @@ export function chapterCount(desc) {
 }
 
 // Returns { ok: true, rec } or { ok: false, why }.
-export function evaluate(item, model, nowMs) {
+export function evaluate(item, model, nowMs, quality = null) {
   const s = model.s;
   if (!/^[A-Za-z0-9_-]{11}$/.test(item.id)) return { ok: false, why: 'badid' };
   if (item.privacy !== 'public') return { ok: false, why: 'notpublic' };
@@ -123,16 +123,15 @@ export function evaluate(item, model, nowMs) {
   const matches = topicMatches(item, model);
   if (!matches.length) return { ok: false, why: 'offtopic' };
 
-  const durScore = mins < 25 ? 0.5 + (0.5 * (mins - s.minMinutes)) / (25 - s.minMinutes) : mins <= 120 ? 1 : 0.9;
-  const depth = Math.min(
-    1,
-    0.8 * durScore + (chapterCount(item.desc) >= 4 ? 0.1 : 0) + (item.desc.length >= 600 ? 0.05 : 0) + (item.caption ? 0.05 : 0),
-  );
-  const relevance = Math.min(1, matches[0].score / 6);
+  const relevance = Math.min(1, matches[0].score / 7);
   const ageDays = Date.parse(item.published) ? Math.max(0, (nowMs - Date.parse(item.published)) / 864e5) : 180;
-  const recency = Math.pow(0.5, ageDays / 180);
+  const recency = Math.pow(0.5, ageDays / 240);
   const trusted = model.trusted.has(item.channelId);
-  const raw = 0.36 * relevance + 0.36 * depth + 0.08 * recency + (trusted ? 0.2 : 0) - 0.15 * cb;
+  const fallbackQuality = Math.max(25, Math.min(90, 48 + Math.min(18, mins / 5) + Math.min(18, chapterCount(item.desc) * 3) + (item.desc.length >= 600 ? 8 : 0) + (item.caption ? 5 : 0)));
+  const q = quality || { score: fallbackQuality, dimensions: {}, confidence: 'low', basis: 'baseline', reason: 'Deterministic metadata baseline.' };
+  // Quality leads. Topic fit is a gate and a ranking signal, not a substitute for substance.
+  const qualityScore = Math.max(0, Math.min(1, (+q.score || 0) / 100));
+  const raw = 0.68 * qualityScore + 0.18 * relevance + 0.06 * recency + (trusted ? 0.08 : 0) - 0.12 * cb;
   const score = Math.round(Math.min(1, Math.max(0, raw)) * 1000) / 1000;
 
   return {
@@ -147,6 +146,11 @@ export function evaluate(item, model, nowMs) {
       topics: matches.map((m) => m.id),
       published: item.published,
       score,
+      quality: Math.round(+q.score || 0),
+      qualityDimensions: q.dimensions || {},
+      qualityConfidence: q.confidence || 'low',
+      qualityBasis: q.basis || 'baseline',
+      qualityReason: q.reason || '',
       trusted,
     },
   };
@@ -178,7 +182,7 @@ export function searchPlan(topic, state, model, nowMs) {
     q,
     maxResults: '25',
     order: 'relevance',
-    videoDuration: 'long',
+    videoDuration: 'any',
     regionCode: s.region,
     relevanceLanguage: s.language,
     safeSearch: 'moderate',

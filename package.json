@@ -1,13 +1,15 @@
 {
   "name": "the-watchlist",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "A personal layer on YouTube that finds videos matching your interests.",
+  "description": "A quality-first personal video discovery layer for YouTube.",
   "scripts": {
     "test": "node --test",
     "update": "node scripts/update.mjs",
     "serve": "python3 -m http.server 8080"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=22"
+  }
 }

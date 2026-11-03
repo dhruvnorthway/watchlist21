@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       # A plain push only republishes the site. Searching YouTube uses daily quota,
       # so it runs on the schedule or when you press "Run workflow".
